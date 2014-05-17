@@ -10,62 +10,72 @@ import (
     "io"
     "io/ioutil"
     "bytes"
+    "sync"
 )
 
 func processUploads(base_endpoint, access_token string, uploadChan chan uploadJob, doneChan chan <- uploadJob){
+    var wg sync.WaitGroup
     for job := range uploadChan {
-        api_url, err := url.Parse(base_endpoint)
+        wg.Add(1)
+        go func(job uploadJob){
+            defer wg.Done()
+            api_url, err := url.Parse(base_endpoint)
 
-        if err != nil {
-            panic(err)
-        }
+            if err != nil {
+                panic(err)
+            }
 
-        api_url.Path = "/medias/create"
+            api_url.Path = "/medias/create"
 
-        file, err := os.Open(job.filePath)
-        if err != nil {
-            log.Printf("Couldn't open %s for uploading: %s.\n", job.filePath, err)
-            continue
-        }
+            file, err := os.Open(job.filePath)
+            if err != nil {
+                log.Printf("Couldn't open %s for uploading: %s.\n", job.filePath, err)
+                return
+            }
 
-        var formBuffer bytes.Buffer
+            var formBuffer bytes.Buffer
 
-        formWriter := multipart.NewWriter(&formBuffer)
-        formWriter.WriteField("access_token", access_token)
+            formWriter := multipart.NewWriter(&formBuffer)
+            formWriter.WriteField("access_token", access_token)
 
-        fileWriter, err := formWriter.CreateFormFile("file", job.filePath)
+            fileWriter, err := formWriter.CreateFormFile("file", job.filePath)
 
-        if err != nil {
-            log.Printf("Couldn't add a multipart form field for %s: %s\n", job.filePath, err)
-            continue
-        }
+            if err != nil {
+                log.Printf("Couldn't add a multipart form field for %s: %s\n", job.filePath, err)
+                return
+            }
 
-        if _, err = io.Copy(fileWriter, file); err != nil {
-            log.Printf("Error copying data between file and form: %s - %s\n", job.filePath, err)
-        }
+            if _, err = io.Copy(fileWriter, file); err != nil {
+                log.Printf("Error copying data between file and form: %s - %s\n", job.filePath, err)
+                return
+            }
 
-        formWriter.Close()
+            formWriter.Close()
 
-        req, err := http.NewRequest("POST", api_url.String(), &formBuffer)
-        if err != nil {
-            log.Printf("Error forming upload request for %s - %s\n", job.filePath, err)
-        }
+            req, err := http.NewRequest("POST", api_url.String(), &formBuffer)
+            if err != nil {
+                log.Printf("Error forming upload request for %s - %s\n", job.filePath, err)
+                return
+            }
 
-        req.Header.Set("Content-Type", formWriter.FormDataContentType())
+            req.Header.Set("Content-Type", formWriter.FormDataContentType())
 
-        client := http.Client{}
+            client := http.Client{}
 
-        response, err := client.Do(req)
-        if err != nil {
-            log.Printf("Error uploading %s - %s\n", job.filePath, err)
-        }
+            response, err := client.Do(req)
+            if err != nil {
+                log.Printf("Error uploading %s - %s\n", job.filePath, err)
+                return
+            }
 
-        body, _ := ioutil.ReadAll(response.Body)
+            body, _ := ioutil.ReadAll(response.Body)
 
-        fmt.Println(response)
-        fmt.Println(string(body))
+            fmt.Println(response)
+            fmt.Println(string(body))
 
-        doneChan <- job
+            doneChan <- job
+        }(job)
     }
+    wg.Wait()
     close(doneChan)
 }
