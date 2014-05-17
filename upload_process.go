@@ -19,6 +19,7 @@ func processUploads(base_endpoint, access_token string, uploadChan chan uploadJo
         wg.Add(1)
         go func(job uploadJob){
             defer wg.Done()
+            log.Printf("Uploading %s\n", job.filePath)
             api_url, err := url.Parse(base_endpoint)
 
             if err != nil {
@@ -69,9 +70,6 @@ func processUploads(base_endpoint, access_token string, uploadChan chan uploadJo
             }
 
             body, _ := ioutil.ReadAll(response.Body)
-
-            fmt.Println(response)
-            fmt.Println(string(body))
 
             doneChan <- job
         }(job)
