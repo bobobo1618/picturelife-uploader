@@ -8,12 +8,10 @@ import (
 func main() {
     // Command line parsing.
     var base_endpoint, access_token, cache_dir string;
-    var batchNum int;
 
     flag.StringVar(&base_endpoint, "base_endpoint", "https://api.picturelife.com/", "API base endpoint location.")
     flag.StringVar(&access_token, "token", "", "API access token.")
     flag.StringVar(&cache_dir, "cache_dir", "./", "Path to where to store hash cache.")
-    flag.IntVar(&batchNum, "batch", 5, "Check signatures and upload files in batches of this number.")
 
     flag.Parse()
 
