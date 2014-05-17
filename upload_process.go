@@ -5,7 +5,6 @@ import (
     "net/url"
     "log"
     "mime/multipart"
-    "fmt"
     "os"
     "io"
     "io/ioutil"
@@ -13,11 +12,11 @@ import (
     "sync"
 )
 
-func processUploads(base_endpoint, access_token string, uploadChan chan uploadJob, doneChan chan <- uploadJob){
+func processUploads(cache_dir, base_endpoint, access_token string, uploadChan chan UploadJob, doneChan chan <- UploadJob){
     var wg sync.WaitGroup
     for job := range uploadChan {
         wg.Add(1)
-        go func(job uploadJob){
+        go func(job UploadJob){
             defer wg.Done()
             log.Printf("Uploading %s\n", job.filePath)
             api_url, err := url.Parse(base_endpoint)
@@ -69,7 +68,11 @@ func processUploads(base_endpoint, access_token string, uploadChan chan uploadJo
                 return
             }
 
-            body, _ := ioutil.ReadAll(response.Body)
+            ioutil.ReadAll(response.Body)
+
+            job.uploaded = true
+
+            job.AddToCache(cache_dir)
 
             doneChan <- job
         }(job)

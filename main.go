@@ -26,9 +26,9 @@ func main() {
     hashChan := make(chan string)
 
     // Channel to take upload jobs.
-    sigCheckChan := make(chan uploadJob)
-    uploadChan := make(chan uploadJob)
-    doneChan := make(chan uploadJob)
+    sigCheckChan := make(chan UploadJob)
+    uploadChan := make(chan UploadJob)
+    doneChan := make(chan UploadJob)
 
     // Walks directories in one goroutine.
     go func(){
@@ -41,11 +41,11 @@ func main() {
     }()
 
     go func(){
-        processSignatureChecks(base_endpoint, access_token, sigCheckChan, uploadChan, doneChan)
+        processSignatureChecks(cache_dir, base_endpoint, access_token, sigCheckChan, uploadChan, doneChan)
     }()
 
     go func(){
-        processUploads(base_endpoint, access_token, uploadChan, doneChan)
+        processUploads(cache_dir, base_endpoint, access_token, uploadChan, doneChan)
     }()
 
     for job := range doneChan {

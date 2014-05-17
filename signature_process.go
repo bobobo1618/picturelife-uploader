@@ -9,25 +9,19 @@ import (
     "sync"
 )
 
-// Struct to hold a hash and a path.
-type uploadJob struct {
-    filePath string
-    fileHash string
-}
-
 type signature_response struct {
     Status int
     Signatures map[string]interface{}
     ResponseTime int `json:"response_time"`
 }
 
-func processSignatureChecks(base_endpoint, access_token string, sigCheckChan chan uploadJob, uploadChan chan <- uploadJob, doneChan chan <- uploadJob){
+func processSignatureChecks(cache_dir, base_endpoint, access_token string, sigCheckChan chan UploadJob, uploadChan chan <- UploadJob, doneChan chan <- UploadJob){
     var wg sync.WaitGroup
 
     for job := range sigCheckChan {
         wg.Add(1)
 
-        go func(job uploadJob){
+        go func(job UploadJob){
             defer wg.Done()
             api_url, err := url.Parse(base_endpoint)
 
@@ -78,10 +72,15 @@ func processSignatureChecks(base_endpoint, access_token string, sigCheckChan cha
                     return
                 }
 
+                log.Println(req_url)
+                log.Println(response.Signatures)
+
                 if response.Signatures[job.fileHash] == nil {
                     log.Printf("Queuing %s for upload.\n", job.filePath)
                     uploadChan <- job
                 } else {
+                    job.uploaded = true
+                    job.AddToCache(cache_dir)
                     doneChan <- job
                 }
 

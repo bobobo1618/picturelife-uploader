@@ -4,12 +4,10 @@ import (
     "path"
     "os"
     "log"
-    "io/ioutil"
-    "fmt"
     "sync"
 )
 
-func processHashChan(cache_dir string, hashChan chan string, sigCheckChan chan <- uploadJob){
+func processHashChan(cache_dir string, hashChan chan string, sigCheckChan chan <- UploadJob){
     var wg sync.WaitGroup
     for filePath := range hashChan {
         wg.Add(1)
@@ -19,8 +17,6 @@ func processHashChan(cache_dir string, hashChan chan string, sigCheckChan chan <
             // Look at the cache
             cachePath := path.Join(cache_dir, filePath)
 
-            var baseSum string;
-
             fileInfo, err := os.Stat(filePath)
             if err != nil {
                 log.Printf("Failed to get information about %s - %s\n", filePath, err)
@@ -29,13 +25,22 @@ func processHashChan(cache_dir string, hashChan chan string, sigCheckChan chan <
 
             lastModTime := fileInfo.ModTime().Unix()
 
-            // Check the cache
-            cacheFile, err := os.Open(cachePath)
+            currentJob := UploadJob{
+                lastModTime: lastModTime,
+                filePath: filePath,
+                uploaded: false,
+            }
+
+            cacheJob := UploadJob{
+                filePath: filePath,
+            }
+
+            err = cacheJob.GetFromCache(cache_dir)
 
             if err != nil {
                 // If the cache file doesn't exist, create it.
                 if os.IsNotExist(err) {
-                    baseSum, err = hashAndCache(cachePath, filePath, lastModTime)
+                    err = currentJob.HashAndCache(cache_dir)
                     if err != nil {
                         log.Printf("Error hashing and caching: %s - %s", filePath, err)
                         return
@@ -45,32 +50,21 @@ func processHashChan(cache_dir string, hashChan chan string, sigCheckChan chan <
                     return
                 }
             } else {
-                defer cacheFile.Close()
-                // Read the cache.
-                readBytes, err := ioutil.ReadAll(cacheFile)
-
-                if err != nil {
-                    log.Printf("Failed to read contents of cache file: %s - %s\n", cachePath, err)
-                    return
-                }
-
-                readSum := string(readBytes)
-                var readModTime int64
-                fmt.Sscanf(readSum, "%d,%s", &readModTime, &baseSum)
-
                 // If the file has changed, recache it.
-                if readModTime != lastModTime {
-                    baseSum, err = hashAndCache(cachePath, filePath, lastModTime)
+                if cacheJob.lastModTime < currentJob.lastModTime {
+                    err = currentJob.HashAndCache(cache_dir)
                     if err != nil {
                         log.Printf("Error hashing and caching: %s - %s", filePath, err)
                         return
                     }
+                    currentJob.uploaded = false
+                } else {
+                    currentJob = cacheJob
                 }
             }
 
-            sigCheckChan <- uploadJob{
-                filePath: filePath,
-                fileHash: baseSum,
+            if !currentJob.uploaded {
+                sigCheckChan <- currentJob
             }
         }(filePath)
     }
