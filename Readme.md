@@ -6,7 +6,7 @@ Performance can easily be improved at the moment (threading, batching signature 
 
 ## Building
 
-It's standard Go. Doesn't use anything outside the standard Go libraries. `go build .` will do nicely. `[goxc](https://github.com/laher/goxc)` works as well if you want to build for other platforms (you can cross compile to Linux, Mac, Windows, BSD, ARM, plan9 etc.).
+It's standard Go. Doesn't use anything outside the standard Go libraries. `go build .` will do nicely. [`goxc`](https://github.com/laher/goxc) works as well if you want to build for other platforms (you can cross compile to Linux, Mac, Windows, BSD, ARM, plan9 etc.).
 
 ## Usage
 
